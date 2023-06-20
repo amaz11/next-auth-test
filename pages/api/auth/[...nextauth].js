@@ -12,35 +12,53 @@ export const authOptions = {
       // e.g. domain, username, password, 2FA token, etc.
       // You can pass any HTML attribute to the <input> tag through the object.
       credentials: {
-        email: {},
-        password: {},
+        email: {
+          label: "email",
+          type: "email",
+          placeholder: "jsmith@example.com",
+        },
+        password: { label: "Password", type: "password" },
       },
-      async authorize(credentials, req) {
+      async authorize(credentials) {
         // Add logic here to look up the user from the credentials supplied
         const { email, password } = credentials;
-        console.log(email, password);
-        const response = await fetch("http://localhost:8000/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
+        try {
+          const response = await fetch("http://127.0.0.1:8000/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email,
+              password,
+            }),
+          });
 
-        const user = await response.json();
-        console.log(user);
-        if (response.ok && user) {
-          return user;
-        } else {
-          return null;
+          
+
+          const user = await response.json();
+          console.log(user);
+          if (!user.success) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
+          if (user.success && user) {
+            return user.user;
+          } else {
+            return null;
+          }
+        } catch (error) {
+          console.log(error);
         }
       },
       callbacks: {
         async jwt({ token, user }) {
-          user && (token.user = user);
-          return token;
+          // user && (token.user = user);
+          return { ...token, ...user };
+        },
+        async signIn({ user, account, profile, email, credentials }) {
+          return true;
         },
         async session({ session, token }) {
-          session.expires = token.user.expirationTime;
-          session.user = token.user;
+          // session.expires = token.user.expirationTime;
+          session.user = token;
           return session;
         },
       },
@@ -48,10 +66,13 @@ export const authOptions = {
     // ...add more providers here
   ],
   session: {
-    strategy: "jwt",
+    // strategy: "jwt",
+    jwt: true,
   },
   pages: {
-    signIn: "/login",
+    signIn: "/auth/login",
   },
+  debug: true,
 };
+
 export default NextAuth(authOptions);
